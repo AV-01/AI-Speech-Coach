@@ -14,7 +14,15 @@ def main():
     """Main Streamlit application."""
     
     # Page configuration
-    
+    try:
+        st.set_page_config(
+        page_title="AI Public Speaking Coach",
+        page_icon="🎤",
+        layout="wide",
+        initial_sidebar_state="expanded"
+        )
+    except:
+        print("Page already configured")
     
     # Main title
     st.title("🎤 AI Public Speaking Coach")
@@ -220,7 +228,7 @@ def setup_sidebar():
     st.sidebar.markdown("Having issues? Check our FAQ or contact support.")
     
     if st.sidebar.button("🔄 Reset App"):
-        st.experimental_rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     st.set_page_config(
