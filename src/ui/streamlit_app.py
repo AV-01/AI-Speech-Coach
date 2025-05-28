@@ -7,8 +7,10 @@ with live and recorded feedback modes.
 """
 
 import streamlit as st
-import os
 from pathlib import Path
+
+from datetime import datetime
+import time
 
 def main():
     """Main Streamlit application."""
@@ -75,6 +77,58 @@ def show_recorded_feedback_mode():
     """Display the Recorded Feedback mode interface."""
     st.subheader("📁 Recorded Feedback Mode")
     
+    # Add option to analyze saved recordings
+    st.markdown("### 📂 Analyze Saved Recordings")
+    
+    # Get project root directory
+    try:
+        project_root = Path(__file__).parent.parent if Path(__file__).parent.parent.name != "src" else Path(__file__).parent.parent.parent
+        video_path = project_root / "data" / "raw" / "video"
+        audio_path = project_root / "data" / "raw" / "audio"
+    except:
+        # Fallback to current directory structure
+        project_root = Path.cwd()
+        video_path = project_root / "data" / "raw" / "video"
+        audio_path = project_root / "data" / "raw" / "audio"
+    
+    # Collect all saved files
+    saved_files = []
+    if video_path.exists():
+        saved_files.extend(list(video_path.glob("*.mp4")))
+    if audio_path.exists():
+        saved_files.extend(list(audio_path.glob("*.wav")))
+    
+    if saved_files:
+        saved_file_names = [f.name for f in saved_files]
+        selected_saved_file = st.selectbox(
+            "Select a saved recording to analyze:",
+            ["None"] + saved_file_names
+        )
+        
+        if selected_saved_file != "None":
+            # Find the full path
+            selected_file_path = None
+            for file_path in saved_files:
+                if file_path.name == selected_saved_file:
+                    selected_file_path = file_path
+                    break
+            
+            if selected_file_path:
+                st.success(f"Selected: {selected_saved_file}")
+                
+                if st.button("🚀 Analyze Saved Recording", type="primary"):
+                    with st.spinner("Analyzing your saved recording..."):
+                        time.sleep(2)  # Simulate processing
+                        st.success("🎉 Analysis complete!")
+                        show_mock_analysis_results(selected_saved_file, selected_file_path.suffix)
+            
+            st.markdown("---")
+    else:
+        st.info("No saved recordings found. Record some sessions first in Live Feedback mode!")
+    
+    # Original file upload functionality
+    st.markdown("### 📤 Upload New Recording")
+    
     # File uploader
     uploaded_file = st.file_uploader(
         "Upload your audio or video file for analysis:",
@@ -113,6 +167,10 @@ def show_recorded_feedback_mode():
             st.markdown(f"**📊 File Category:** {file_category}")
             st.markdown(f"**🔍 Analysis Type:** {analysis_type}")
         
+        # Save uploaded file to /data/raw
+        if st.button("💾 Save to Analysis Directory"):
+            save_uploaded_file(uploaded_file)
+        
         # Print file information to console (as requested)
         print(f"Uploaded file - Name: {uploaded_file.name}, Type: {uploaded_file.type}")
         
@@ -136,7 +194,6 @@ def show_recorded_feedback_mode():
         if st.button("🚀 Start Analysis", type="primary"):
             with st.spinner("Analyzing your file..."):
                 # Placeholder for actual analysis
-                import time
                 time.sleep(2)  # Simulate processing time
                 
                 st.success("🎉 Analysis complete!")
@@ -149,17 +206,54 @@ def show_recorded_feedback_mode():
         # Show instructions when no file is uploaded
         st.markdown("""
         **📋 Instructions:**
-        1. Click the "Browse files" button above
-        2. Select a `.wav` (audio) or `.mp4` (video) file
-        3. Wait for the file to upload
-        4. Configure analysis options
-        5. Click "Start Analysis" to begin
+        1. **Analyze saved recordings** from the dropdown above, OR
+        2. **Upload new files** using the file uploader below
+        3. Configure analysis options
+        4. Click "Start Analysis" to begin
         
         **💡 Tips:**
+        - Live recordings are automatically saved to `/data/raw`
         - For best results, use clear audio recordings
         - Video files enable additional gesture analysis
         - Files up to 200MB are supported
         """)
+
+def save_uploaded_file(uploaded_file):
+    """Save uploaded file to project's data/raw directory."""
+    try:
+        # Get project root directory
+        try:
+            project_root = Path(__file__).parent.parent if Path(__file__).parent.parent.name != "src" else Path(__file__).parent.parent.parent
+        except:
+            project_root = Path.cwd()
+        
+        # Determine if it's audio or video and set appropriate path
+        file_extension = Path(uploaded_file.name).suffix.lower()
+        if file_extension in ['.wav', '.mp3', '.m4a']:
+            save_path = project_root / "data" / "raw" / "audio"
+        elif file_extension in ['.mp4', '.avi', '.mov']:
+            save_path = project_root / "data" / "raw" / "video"
+        else:
+            save_path = project_root / "data" / "raw"
+        
+        save_path.mkdir(parents=True, exist_ok=True)
+        
+        # Create filename with timestamp to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"uploaded_{timestamp}_{uploaded_file.name}"
+        
+        filepath = save_path / filename
+        
+        # Save the file
+        with open(filepath, "wb") as f:
+            f.write(uploaded_file.getbuffer())  # Changed from getvalue() to getbuffer()
+        
+        st.success(f"✅ File saved to: {filepath.relative_to(project_root)}")
+        return str(filepath)
+        
+    except Exception as e:
+        st.error(f"❌ Error saving file: {str(e)}")
+        return None
 
 def show_mock_analysis_results(filename: str, file_extension: str):
     """Display mock analysis results."""
@@ -208,6 +302,7 @@ def show_mock_analysis_results(filename: str, file_extension: str):
             st.markdown("**Combined Analysis:**")
             st.progress(0.81)
             st.caption("Overall Performance: 8.1/10")
+
 
 # Sidebar with additional information
 def setup_sidebar():
